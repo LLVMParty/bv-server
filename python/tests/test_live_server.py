@@ -31,14 +31,26 @@ def server_binary() -> pathlib.Path:
     return REPO_ROOT / "target" / "debug" / exe
 
 
-def server_environment() -> dict[str, str]:
-    env = os.environ.copy()
+def z3_library_dirs() -> list[str]:
     build_dir = REPO_ROOT / "target" / "debug" / "build"
-    z3_dirs = [
+    return [
         str(path)
         for pattern in ("z3-sys-*/out/z3-*/bin", "z3-sys-*/out/z3-*/lib")
         for path in build_dir.glob(pattern)
     ]
+
+
+def describe_z3_library_dirs() -> str:
+    lines = []
+    for directory in z3_library_dirs():
+        names = sorted(p.name for p in pathlib.Path(directory).iterdir() if "z3" in p.name.lower())
+        lines.append(f"  {directory}: {', '.join(names) or '(no z3 files)'}")
+    return "\n".join(lines) or "  (none found)"
+
+
+def server_environment() -> dict[str, str]:
+    env = os.environ.copy()
+    z3_dirs = z3_library_dirs()
     if z3_dirs:
         sep = os.pathsep
         env["PATH"] = sep.join(z3_dirs + [env.get("PATH", "")])
@@ -65,7 +77,11 @@ class LiveServer:
         while time.time() < deadline:
             if self.proc.poll() is not None:
                 stderr = self.proc.stderr.read().decode("utf-8", "replace") if self.proc.stderr else ""
-                raise RuntimeError(f"bv-server exited early with {self.proc.returncode}: {stderr}")
+                raise RuntimeError(
+                    f"bv-server exited early with {self.proc.returncode}: {stderr}\n"
+                    f"z3 library directories added to the server's search path:\n"
+                    f"{describe_z3_library_dirs()}"
+                )
             try:
                 with socket.create_connection(("127.0.0.1", self.port), timeout=0.2):
                     return self
