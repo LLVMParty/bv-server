@@ -35,7 +35,9 @@ def z3_library_dirs() -> list[str]:
     build_dir = REPO_ROOT / "target" / "debug" / "build"
     return [
         str(path)
-        for pattern in ("z3-sys-*/out/z3-*/bin", "z3-sys-*/out/z3-*/lib")
+        # Older Cargo: build/z3-sys-<hash>/out; newer: build/z3-sys/<hash>/out.
+        for prefix in ("z3-sys-*", "z3-sys/*")
+        for pattern in (f"{prefix}/out/z3-*/bin", f"{prefix}/out/z3-*/lib")
         for path in build_dir.glob(pattern)
     ]
 
