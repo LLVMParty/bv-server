@@ -109,3 +109,25 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def _legacy_request(payload: bytes) -> bytes:
+    assert payload[:4] == bv.REQUEST_MAGIC and payload[32:36] == bv.EXPR_MAGIC
+    return b"SMTQ" + payload[4:32] + b"SMT\0" + payload[36:]
+
+
+def test_z3_server_answers_legacy_clients_with_legacy_magics() -> None:
+    with Z3Server.start(port=0) as server:
+        ctx = bv.Context()
+        x = ctx.bv_var("x", 8)
+        ctx.assert_(ctx.bv_eq(x, 3))
+
+        solve = _legacy_request(ctx._build_solve_request(0xA010).payload)
+        response = server._dispatch_payload(solve)
+        assert response[:4] == b"SMTR"
+        assert bv._parse_response(b"BVSR" + response[4:]).status is bv.Status.SAT
+
+        simplify = _legacy_request(ctx._build_simplify_request(0xA011, x + 0).payload)
+        response = server._dispatch_payload(simplify)
+        assert response[:4] == b"SMTR"
+        assert response[24:28] == b"SMT\0"

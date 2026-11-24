@@ -26,8 +26,8 @@ fn simple_sat_request_golden_vector() {
         .build_solve_request(0x0102_0304, 500, true, false)
         .unwrap();
     let expected = hex_bytes(
-        "53 4d 54 51 04 03 02 01 00 01 f4 01 00 00 71 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-         53 4d 54 00 01 00 00 00 03 00 00 00 02 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+        "42 56 53 51 04 03 02 01 00 01 f4 01 00 00 71 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+         42 56 00 00 01 00 00 00 03 00 00 00 02 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
          00 00 00 00 08 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00 \
          01 00 00 00 08 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00 \
          1f 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
@@ -52,8 +52,8 @@ fn simple_unsat_request_golden_vector() {
 
     let bytes = builder.build_solve_request(5, 0, false, false).unwrap();
     let expected = hex_bytes(
-        "53 4d 54 51 05 00 00 00 00 00 00 00 00 00 38 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-         53 4d 54 00 01 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+        "42 56 53 51 05 00 00 00 00 00 00 00 00 00 38 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+         42 56 00 00 01 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
          19 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 80",
     );
     assert_eq!(bytes, expected);
@@ -72,7 +72,7 @@ fn wide_constant_golden_vector() {
         .unwrap();
     let bytes = builder.to_bytes().unwrap();
     let expected = hex_bytes(
-        "53 4d 54 00 01 00 00 00 01 00 00 00 00 00 00 00 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+        "42 56 00 00 01 00 00 00 01 00 00 00 00 00 00 00 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
          01 00 00 00 80 00 00 00 00 00 00 00 00 00 00 00 10 00 00 00 00 00 00 00 \
          01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10",
     );
@@ -116,8 +116,8 @@ fn named_assertion_and_unsat_core_golden_vectors() {
     builder.assert_named("a0", p).unwrap();
     let bytes = builder.build_solve_request(7, 0, false, true).unwrap();
     let expected_request = hex_bytes(
-        "53 4d 54 51 07 00 00 00 00 02 00 00 00 00 3b 00 00 00 01 00 01 00 00 00 00 00 00 00 00 00 00 00 \
-         53 4d 54 00 01 00 00 00 01 00 00 00 00 00 00 00 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+        "42 56 53 51 07 00 00 00 00 02 00 00 00 00 3b 00 00 00 01 00 01 00 00 00 00 00 00 00 00 00 00 00 \
+         42 56 00 00 01 00 00 00 01 00 00 00 00 00 00 00 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
          1a 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00 \
          70 61 30 00 00 00 80 01 00 00 00 02 00 00 00",
     );
@@ -148,7 +148,7 @@ fn named_assertion_and_unsat_core_golden_vectors() {
     .encode()
     .unwrap();
     let expected_response =
-        hex_bytes("53 4d 54 52 07 00 00 00 02 02 0a 00 00 00 00 00 01 00 00 00 02 00 00 00 61 30");
+        hex_bytes("42 56 53 52 07 00 00 00 02 02 0a 00 00 00 00 00 01 00 00 00 02 00 00 00 61 30");
     assert_eq!(response, expected_response);
     let parsed_response = BinaryResponse::parse(&response).unwrap();
     assert_eq!(parsed_response.envelope.status, Status::Unsat);
@@ -417,7 +417,7 @@ fn high_level_context_matches_python_style_api() {
     let request = ctx
         .build_solve_request(0x0102_0304, 500, true, false)
         .unwrap();
-    assert_eq!(request[0..4], *b"SMTQ");
+    assert_eq!(request[0..4], *b"BVSQ");
     assert_eq!(
         ctx.to_smt2().unwrap().lines().next().unwrap(),
         "(set-logic QF_BV)"

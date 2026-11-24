@@ -1,8 +1,8 @@
 # bv-server
 
-bv-server lets analysis tools build `QF_BV` formulas with small client libraries and delegate solving or simplification to a separate server.
+bv-server is a bit-vector expression service for binary analysis. Tools that lift machine code, for symbolic execution, deobfuscation, or IR experiments, send `QF_BV` expressions as a compact DAG, and the server solves, optimizes, or simplifies them.
 
-It targets binary analysis, lifting, symbolic execution, and IR experiments where client projects need bit-vector queries but should avoid embedding solver build systems. A client constructs a flat binary DAG, sends a length-prefixed request, and receives a model, unsat core, optimum value, or simplified expression. The server owns the solver and simplifier integrations.
+It targets projects where client projects need bit-vector queries but should avoid embedding solver build systems. A client constructs a flat binary DAG, sends a length-prefixed request, and receives a model, unsat core, optimum value, or simplified expression. The server owns the solver and simplifier integrations.
 
 ## Clients
 
@@ -54,7 +54,7 @@ payload bytes
 
 Payload formats:
 
-- binary `SMTQ` request produced by `bv-wire` or one of the clients;
+- binary `BVSQ` request produced by `bv-wire` or one of the clients;
 - SMT-LIB script as UTF-8 text.
 
 ## Request recording
@@ -81,7 +81,13 @@ BV_SERVER_RECORD_DB= cargo run -p bv-server -- 127.0.0.1:9123
 
 Rows are deduplicated by the BLAKE3 hash of the canonical binary request, with request and response `request_id` fields zeroed so equivalent requests share one entry. Existing rows are left unchanged.
 
-To import the old file-tree corpus from `~/.bv-server/requests` into the SQLite database:
+The `backend` column names the backend that produced the response: the winner of the solver race (`z3`, `binbit`, `qfbvsmtrs`) or the simplifier (`rumba`). It is NULL for error responses, requests rejected before reaching a backend, and rows recorded before the column existed. For example:
+
+```sh
+sqlite3 ~/.bv-server/recordings.db "SELECT backend, count(*) FROM recordings GROUP BY backend"
+```
+
+To import the old file-tree corpus from `~/.smt-server/requests` into the SQLite database:
 
 ```sh
 cargo run -p bv-server -- migrate-recordings
@@ -92,6 +98,15 @@ Custom migration paths are supported:
 ```sh
 cargo run -p bv-server -- migrate-recordings /path/to/requests /tmp/bv-recordings.db
 ```
+
+## Upgrading from smt-server
+
+This project used to be called smt-server, and its wire format used the magics `SMTQ` (request), `SMTR` (response) and `SMT\0` (expression buffer). The current magics are `BVSQ`, `BVSR` and `BV\0\0`; the protocol is otherwise unchanged.
+
+- **Old clients keep working.** The server accepts `SMTQ` requests and answers them with `SMTR` responses (and `SMT\0` expression buffers). Clients from this repository send only the new magics, so they need a bv-server, not an old smt-server.
+- **Recordings carry over.** On startup, if `~/.bv-server/recordings.db` does not exist but `~/.smt-server/recordings.db` does, the server copies the old database into place; the old file is left unchanged. Any database opened by the server is then upgraded once (tracked by `PRAGMA user_version`): rows are rewritten to the new magics and re-keyed, so old and new clients share recordings and cache entries.
+- **Environment variables** were renamed from `SMT_SERVER_*` to `BV_SERVER_*`. `SMT_SERVER_RECORD_DB` is still honoured, with a deprecation warning, when `BV_SERVER_RECORD_DB` is unset; the others (`SMT_SERVER_ADDRESS`, `SMT_SERVER_TEXT_QFBVSMTRS_BUDGET_MS`) must be renamed.
+- **Package names:** `smt-wire` → `bv-wire` (Rust crate; Python package and module `bv_wire`; C++ header `<bv_wire/bv_wire.hpp>`, namespace `bv_wire`, CMake package `bv_wire`), `smt-qfbv-smtlib` → `bv-smtlib`, `smt_z3_server.py` → `bv_z3_server.py`. The C++ base exception `smt_error` is now `bv_error`.
 
 ## Python client example
 

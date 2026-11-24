@@ -44,6 +44,9 @@ impl Backend for PooledBackend {
         let Some(index) = self.route_index(request) else {
             return Ok(QueryResult::unknown("backend pool is empty"));
         };
-        self.backends[index].handle(request)
+        let backend = &self.backends[index];
+        backend
+            .handle(request)
+            .map(|result| result.attributed_to(backend.name()))
     }
 }

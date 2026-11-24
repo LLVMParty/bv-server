@@ -49,7 +49,10 @@ impl Backend for RacingBackend {
             return Ok(QueryResult::unknown("no backends configured"));
         }
         if self.backends.len() == 1 {
-            return self.backends[0].handle(request);
+            let backend = &self.backends[0];
+            return backend
+                .handle(request)
+                .map(|result| result.attributed_to(backend.name()));
         }
         let effective_budget_ms = if request.envelope.budget_ms == 0 {
             self.default_budget_ms.unwrap_or(0)
@@ -69,7 +72,9 @@ impl Backend for RacingBackend {
             let context = SolveContext::new(cancellation.clone());
             cancellation_tokens.push(cancellation);
             thread::spawn(move || {
-                let result = backend.handle_with_context(&request, &context);
+                let result = backend
+                    .handle_with_context(&request, &context)
+                    .map(|result| result.attributed_to(backend.name()));
                 let _ = tx.send((backend.name(), result));
             });
         }
@@ -103,13 +108,16 @@ impl Backend for RacingBackend {
                             QueryResult::unknown(
                                 "backend returned conclusive result without requested artifact",
                             )
+                            .attributed_to(name)
                         });
                     } else {
                         first_unknown.get_or_insert(result);
                     }
                 }
                 Err(err) => {
-                    first_unknown.get_or_insert_with(|| QueryResult::unknown(err.to_string()));
+                    first_unknown.get_or_insert_with(|| {
+                        QueryResult::unknown(err.to_string()).attributed_to(name)
+                    });
                 }
             }
         }

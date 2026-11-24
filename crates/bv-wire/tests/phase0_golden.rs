@@ -4,7 +4,7 @@ use bv_wire::raw::{constants::tag, le, ExprView, ExpressionBuffer, NodeRef, RawN
 fn empty_expression_buffer_golden_bytes() {
     let empty = ExpressionBuffer::empty();
     let expected = [
-        b'S', b'M', b'T', 0, // magic
+        b'B', b'V', 0, 0, // magic
         1, 0, 0, 0, // version + pad
         0, 0, 0, 0, // node_count
         0, 0, 0, 0, // child_count
@@ -24,7 +24,7 @@ fn simple_expression_buffer_golden_bytes() {
     let children = [NodeRef::bv(0).unwrap(), NodeRef::bv(0).unwrap()];
     let expr = ExpressionBuffer::from_parts(&nodes, &children, b"x").unwrap();
     let expected = [
-        b'S', b'M', b'T', 0, 1, 0, 0, 0, // header magic/version
+        b'B', b'V', 0, 0, 1, 0, 0, 0, // header magic/version
         2, 0, 0, 0, // node_count
         2, 0, 0, 0, // child_count
         1, 0, 0, 0, // blob_len

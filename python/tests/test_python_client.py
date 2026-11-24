@@ -18,8 +18,8 @@ def test_python_client_matches_simple_sat_golden_vector():
     one = ctx.bv_const(1, 8)
     ctx.assert_(ctx.bv_eq(x, one))
     assert ctx._build_solve_request(0x01020304, 500, True, False).payload == hex_bytes(
-        "53 4d 54 51 04 03 02 01 00 01 f4 01 00 00 71 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00"
-        "53 4d 54 00 01 00 00 00 03 00 00 00 02 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+        "42 56 53 51 04 03 02 01 00 01 f4 01 00 00 71 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00"
+        "42 56 00 00 01 00 00 00 03 00 00 00 02 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
         "00 00 00 00 08 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00"
         "01 00 00 00 08 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00"
         "1f 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
@@ -95,7 +95,7 @@ def test_terms_validate_width_sort_and_context():
     assert not hasattr(p, "and_")
     rotated = ctx.bv_rotate_left(a, 3)
     assert isinstance(rotated, bv.BVTerm)
-    assert ctx._build_minimize_request(3, a, signed=True, want_model=True).payload.startswith(b"SMTQ")
+    assert ctx._build_minimize_request(3, a, signed=True, want_model=True).payload.startswith(b"BVSQ")
     try:
         a + c
         raise AssertionError("expected width error")
@@ -224,7 +224,7 @@ def test_python_wide_integer_constant_uses_blob_encoding_and_masks_to_width():
 
 
 def test_python_response_parser_and_model_mapping():
-    response = b"SMTR" + (7).to_bytes(4, "little") + bytes([bv.Status.ERROR, 16]) + (3).to_bytes(4, "little") + b"\0\0bad"
+    response = b"BVSR" + (7).to_bytes(4, "little") + bytes([bv.Status.ERROR, 16]) + (3).to_bytes(4, "little") + b"\0\0bad"
     parsed = bv._parse_response(response)
     assert parsed.request_id == 7
     assert parsed.status is bv.Status.ERROR
@@ -238,7 +238,7 @@ def test_python_response_parser_and_model_mapping():
     compacted_x = request.old_to_new[x.id]
     scalar = (8).to_bytes(4, "little") + (1).to_bytes(4, "little") + b"*"
     model_payload = (1).to_bytes(4, "little") + compacted_x.to_bytes(4, "little") + scalar
-    raw = bv._parse_response(b"SMTR" + (8).to_bytes(4, "little") + bytes([bv.Status.SAT, 1]) + len(model_payload).to_bytes(4, "little") + b"\0\0" + model_payload)
+    raw = bv._parse_response(b"BVSR" + (8).to_bytes(4, "little") + bytes([bv.Status.SAT, 1]) + len(model_payload).to_bytes(4, "little") + b"\0\0" + model_payload)
     client = bv.Client.from_socket(_FakeSocket.empty())
     model = client._solve_response(raw, request).model
     assert model is not None
@@ -252,21 +252,21 @@ def test_python_response_parser_and_model_mapping():
 
 
 def test_python_response_parser_rejects_bad_status_flag_combinations():
-    bad_error = b"SMTR" + (1).to_bytes(4, "little") + bytes([bv.Status.ERROR, 0]) + (0).to_bytes(4, "little") + b"\0\0"
+    bad_error = b"BVSR" + (1).to_bytes(4, "little") + bytes([bv.Status.ERROR, 0]) + (0).to_bytes(4, "little") + b"\0\0"
     try:
         bv._parse_response(bad_error)
         raise AssertionError("expected bad ERROR response to be rejected")
     except bv.ProtocolError:
         pass
 
-    bad_sat = b"SMTR" + (1).to_bytes(4, "little") + bytes([bv.Status.SAT, 2]) + (0).to_bytes(4, "little") + b"\0\0"
+    bad_sat = b"BVSR" + (1).to_bytes(4, "little") + bytes([bv.Status.SAT, 2]) + (0).to_bytes(4, "little") + b"\0\0"
     try:
         bv._parse_response(bad_sat)
         raise AssertionError("expected bad SAT flags to be rejected")
     except bv.ProtocolError:
         pass
 
-    bad_simplified = b"SMTR" + (1).to_bytes(4, "little") + bytes([bv.Status.SIMPLIFIED, 0]) + (0).to_bytes(4, "little") + b"\0\0"
+    bad_simplified = b"BVSR" + (1).to_bytes(4, "little") + bytes([bv.Status.SIMPLIFIED, 0]) + (0).to_bytes(4, "little") + b"\0\0"
     try:
         bv._parse_response(bad_simplified)
         raise AssertionError("expected bad SIMPLIFIED flags to be rejected")

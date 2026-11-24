@@ -11,7 +11,11 @@ u32_le frame_len
 u8[frame_len] frame_payload
 ```
 
-If `frame_payload` starts with `"SMTQ"`, it is a binary request. Otherwise the payload is treated as one complete UTF-8 SMT-LIB script. Binary responses start with `"SMTR"`; text responses are UTF-8 SMT-LIB output in the same transport frame.
+If `frame_payload` starts with `"BVSQ"`, it is a binary request. Otherwise the payload is treated as one complete UTF-8 SMT-LIB script. Binary responses start with `"BVSR"`; text responses are UTF-8 SMT-LIB output in the same transport frame.
+
+### Legacy magics
+
+Before the project was renamed from smt-server, the same layout used the magics `"SMTQ"` (request), `"SMTR"` (response) and `"SMT\0"` (expression buffer). The reference server still accepts `"SMTQ"` requests: it rewrites the request and embedded expression magics to the current ones, handles the request normally, and rewrites the response magic (and the expression magic in a `HAS_EXPR` simplify block) back to the legacy ones. Clients only emit the current magics. See `bv_wire::raw::legacy`.
 
 ## Expression buffer
 
@@ -28,7 +32,7 @@ Blob table        blob_len bytes
 
 | Field | Size | Description |
 |---|---:|---|
-| `magic` | 4 | `"SMT\0"` |
+| `magic` | 4 | `"BV\0\0"` |
 | `version` | 1 | currently `1` |
 | padding | 3 | zero when encoded |
 | `node_count` | 4 | number of node records |
@@ -130,7 +134,7 @@ A binary frame payload starts with a 32-byte request envelope:
 
 | Field | Size | Description |
 |---|---:|---|
-| `magic` | 4 | `"SMTQ"` |
+| `magic` | 4 | `"BVSQ"` |
 | `request_id` | 4 | echoed by the response |
 | `command` | 1 | command value |
 | `flags` | 1 | request flags |
@@ -174,7 +178,7 @@ A binary response payload starts with a 16-byte response envelope:
 
 | Field | Size | Description |
 |---|---:|---|
-| `magic` | 4 | `"SMTR"` |
+| `magic` | 4 | `"BVSR"` |
 | `request_id` | 4 | copied from the request |
 | `status` | 1 | status value |
 | `flags` | 1 | response flags |

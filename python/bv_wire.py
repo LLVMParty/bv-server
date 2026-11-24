@@ -17,9 +17,9 @@ import socket
 import struct
 from typing import Any, Callable, Iterable, Iterator, Literal, Optional, TypeVar
 
-EXPR_MAGIC = b"SMT\0"
-REQUEST_MAGIC = b"SMTQ"
-RESPONSE_MAGIC = b"SMTR"
+EXPR_MAGIC = b"BV\0\0"
+REQUEST_MAGIC = b"BVSQ"
+RESPONSE_MAGIC = b"BVSR"
 VERSION = 1
 BOOL_BIT = 0x80000000
 INDEX_MASK = 0x7FFFFFFF

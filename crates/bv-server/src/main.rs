@@ -2,8 +2,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use bv_server::{
-    default_legacy_recording_tree, migrate_recording_tree, recording_db_path, serve_tcp,
-    BinbitBackend, CommandRouterBackend, QfbvsmtrsBackend, RacingBackend, RumbaBackend,
+    default_legacy_recording_tree, init_recording, migrate_recording_tree, recording_db_path,
+    serve_tcp, BinbitBackend, CommandRouterBackend, QfbvsmtrsBackend, RacingBackend, RumbaBackend,
     ServerConfig, Z3Backend,
 };
 
@@ -27,6 +27,7 @@ fn main() -> std::io::Result<()> {
     eprintln!(
         "bv-server listening on {addr} with rumba simplifier + racing solver (z3 crate + binbit + qfbvsmtrs)"
     );
+    init_recording();
     serve_tcp(addr, ServerConfig::new(backend))
 }
 

@@ -27,6 +27,10 @@ pub struct QueryResult {
     pub simplify: Option<SimplifyBlock>,
     pub optimization: Option<OptimizationValueBlock>,
     pub message: Option<String>,
+    /// Name of the backend that produced this result: the leaf backend, not a
+    /// wrapper such as the racing or command-router backend. Set by wrappers
+    /// via [`QueryResult::attributed_to`]; leaf backends may leave it `None`.
+    pub backend: Option<&'static str>,
 }
 
 impl QueryResult {
@@ -38,6 +42,7 @@ impl QueryResult {
             simplify: None,
             optimization: None,
             message: None,
+            backend: None,
         }
     }
 
@@ -49,6 +54,7 @@ impl QueryResult {
             simplify: None,
             optimization: None,
             message: None,
+            backend: None,
         }
     }
 
@@ -60,6 +66,7 @@ impl QueryResult {
             simplify: None,
             optimization: None,
             message: Some(message.into()),
+            backend: None,
         }
     }
 
@@ -71,6 +78,7 @@ impl QueryResult {
             simplify: Some(simplify),
             optimization: None,
             message: None,
+            backend: None,
         }
     }
 
@@ -82,7 +90,15 @@ impl QueryResult {
             simplify: None,
             optimization: Some(optimization),
             message: None,
+            backend: None,
         }
+    }
+
+    /// Record `backend` as the producer of this result unless an inner backend
+    /// already did.
+    pub fn attributed_to(mut self, backend: &'static str) -> Self {
+        self.backend.get_or_insert(backend);
+        self
     }
 
     pub fn is_conclusive(&self) -> bool {

@@ -29,8 +29,14 @@ impl Backend for CommandRouterBackend {
 
     fn handle(&self, request: &BinaryRequest) -> bv_wire::Result<QueryResult> {
         match request.envelope.command {
-            Command::Simplify => self.simplifier.handle(request),
-            Command::Solve | Command::Minimize | Command::Maximize => self.solver.handle(request),
+            Command::Simplify => self
+                .simplifier
+                .handle(request)
+                .map(|result| result.attributed_to(self.simplifier.name())),
+            Command::Solve | Command::Minimize | Command::Maximize => self
+                .solver
+                .handle(request)
+                .map(|result| result.attributed_to(self.solver.name())),
         }
     }
 
@@ -40,10 +46,14 @@ impl Backend for CommandRouterBackend {
         context: &SolveContext,
     ) -> bv_wire::Result<QueryResult> {
         match request.envelope.command {
-            Command::Simplify => self.simplifier.handle_with_context(request, context),
-            Command::Solve | Command::Minimize | Command::Maximize => {
-                self.solver.handle_with_context(request, context)
-            }
+            Command::Simplify => self
+                .simplifier
+                .handle_with_context(request, context)
+                .map(|result| result.attributed_to(self.simplifier.name())),
+            Command::Solve | Command::Minimize | Command::Maximize => self
+                .solver
+                .handle_with_context(request, context)
+                .map(|result| result.attributed_to(self.solver.name())),
         }
     }
 }

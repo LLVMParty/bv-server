@@ -232,6 +232,7 @@ fn handle_text_frame_inner(
     };
     match backend.handle(&query.request) {
         Ok(result) => {
+            let result = result.attributed_to(backend.name());
             if record {
                 record_text_binary_pair(&query, &result);
             }
@@ -255,7 +256,7 @@ fn record_text_binary_pair(query: &TextQuery, result: &QueryResult) {
     else {
         return;
     };
-    record_binary_pair(&request, &response);
+    record_binary_pair(&request, &response, result.backend);
 }
 
 fn record_text_binary_error(query: &TextQuery, message: &str) {
@@ -267,7 +268,7 @@ fn record_text_binary_error(query: &TextQuery, message: &str) {
     else {
         return;
     };
-    record_binary_pair(&request, &response);
+    record_binary_pair(&request, &response, None);
 }
 
 fn allows_qfbvsmtrs_text_fallback(backend: &dyn Backend) -> bool {

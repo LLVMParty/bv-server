@@ -14,12 +14,25 @@ pub fn handle_binary_frame(
     frame_payload: &[u8],
     backend: &dyn Backend,
 ) -> bv_wire::Result<BinaryResponse> {
+    handle_binary_frame_attributed(frame_payload, backend).0
+}
+
+/// Like [`handle_binary_frame`], also returning the name of the backend that
+/// produced the result (`None` if the request was rejected before reaching a
+/// backend or the backend failed).
+pub(crate) fn handle_binary_frame_attributed(
+    frame_payload: &[u8],
+    backend: &dyn Backend,
+) -> (bv_wire::Result<BinaryResponse>, Option<&'static str>) {
     if !is_binary_request_payload(frame_payload) {
-        return BinaryResponse::error(0, "frame payload is not a binary SMTQ request");
+        return (
+            BinaryResponse::error(0, "frame payload is not a binary request"),
+            None,
+        );
     }
     match BinaryRequest::parse(frame_payload) {
-        Ok(request) => handle_binary_request(&request, backend),
-        Err(err) => BinaryResponse::error(0, &err.to_string()),
+        Ok(request) => handle_binary_request_attributed(&request, backend),
+        Err(err) => (BinaryResponse::error(0, &err.to_string()), None),
     }
 }
 
@@ -27,9 +40,23 @@ pub fn handle_binary_request(
     request: &BinaryRequest,
     backend: &dyn Backend,
 ) -> bv_wire::Result<BinaryResponse> {
+    handle_binary_request_attributed(request, backend).0
+}
+
+fn handle_binary_request_attributed(
+    request: &BinaryRequest,
+    backend: &dyn Backend,
+) -> (bv_wire::Result<BinaryResponse>, Option<&'static str>) {
     match backend.handle(request) {
-        Ok(result) => response_from_query_result(request, result),
-        Err(err) => BinaryResponse::error(request.envelope.request_id, &err.to_string()),
+        Ok(result) => {
+            let result = result.attributed_to(backend.name());
+            let name = result.backend;
+            (response_from_query_result(request, result), name)
+        }
+        Err(err) => (
+            BinaryResponse::error(request.envelope.request_id, &err.to_string()),
+            None,
+        ),
     }
 }
 

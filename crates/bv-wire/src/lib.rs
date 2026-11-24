@@ -14,6 +14,7 @@ mod constants;
 mod error;
 mod expr;
 mod le;
+mod legacy;
 mod request;
 mod response;
 mod types;
@@ -52,6 +53,10 @@ pub mod raw {
 
     pub mod le {
         pub use crate::le::*;
+    }
+
+    pub mod legacy {
+        pub use crate::legacy::*;
     }
 
     pub use crate::builder::{Assertion, CompactedExpression, ExprBuilder};

@@ -13,9 +13,12 @@ use crate::backend::Backend;
 use crate::cache::{
     binary_request_id, cache_key_for_payload, rebind_cached_response, ResponseCache,
 };
-use crate::protocol::handle_binary_frame;
+use crate::protocol::handle_binary_frame_attributed;
 use crate::recording::record_binary_pair;
 use crate::smtlib::handle_text_frame_recording;
+use bv_wire::raw::legacy::{
+    downgrade_response_in_place, is_legacy_request_payload, upgrade_request_in_place,
+};
 
 pub const DEFAULT_MAX_FRAME_BYTES: usize = 64 * 1024 * 1024;
 pub const DEFAULT_MAX_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
@@ -137,7 +140,39 @@ fn handle_connection(mut stream: TcpStream, config: Arc<ServerConfig>) -> std::i
     }
 }
 
+/// Dispatch one frame payload, consulting `cache` for binary requests.
+///
+/// Requests using the legacy `SMTQ` magics are upgraded to the current magics
+/// before dispatch, so the cache and the recordings only ever see current
+/// magics, and the response is downgraded back for the legacy client.
 pub fn dispatch_payload_with_cache(
+    payload: &[u8],
+    backend: &dyn Backend,
+    cache: Option<&ResponseCache>,
+) -> Vec<u8> {
+    with_legacy_magics(payload, |payload| {
+        dispatch_current_with_cache(payload, backend, cache)
+    })
+}
+
+/// Dispatch one frame payload without a cache. See [`dispatch_payload_with_cache`]
+/// for how legacy-magic requests are handled.
+pub fn dispatch_payload(payload: &[u8], backend: &dyn Backend) -> Vec<u8> {
+    with_legacy_magics(payload, |payload| dispatch_current(payload, backend))
+}
+
+fn with_legacy_magics(payload: &[u8], dispatch: impl FnOnce(&[u8]) -> Vec<u8>) -> Vec<u8> {
+    if !is_legacy_request_payload(payload) {
+        return dispatch(payload);
+    }
+    let mut upgraded = payload.to_vec();
+    upgrade_request_in_place(&mut upgraded);
+    let mut response = dispatch(&upgraded);
+    downgrade_response_in_place(&mut response);
+    response
+}
+
+fn dispatch_current_with_cache(
     payload: &[u8],
     backend: &dyn Backend,
     cache: Option<&ResponseCache>,
@@ -149,16 +184,18 @@ pub fn dispatch_payload_with_cache(
         let request_id = binary_request_id(payload);
         if let Some(response) = cache.lookup(&key) {
             let response = rebind_cached_response(response, request_id);
-            record_binary_pair(payload, &response);
+            // The miss that filled this entry already recorded the pair with its
+            // backend; this insert only matters if that one failed.
+            record_binary_pair(payload, &response, None);
             return response;
         }
-        let response = dispatch_payload(payload, backend);
+        let response = dispatch_current(payload, backend);
         if is_cacheable_binary_response(&response) {
             cache.insert(key, response.clone());
         }
         return response;
     }
-    dispatch_payload(payload, backend)
+    dispatch_current(payload, backend)
 }
 
 fn is_cacheable_binary_response(response: &[u8]) -> bool {
@@ -172,14 +209,14 @@ fn is_cacheable_binary_response(response: &[u8]) -> bool {
         .unwrap_or(false)
 }
 
-pub fn dispatch_payload(payload: &[u8], backend: &dyn Backend) -> Vec<u8> {
+fn dispatch_current(payload: &[u8], backend: &dyn Backend) -> Vec<u8> {
     if bv_wire::raw::request::is_binary_request_payload(payload) {
-        let response =
-            match handle_binary_frame(payload, backend).and_then(|response| response.encode()) {
-                Ok(bytes) => bytes,
-                Err(err) => binary_error_response(&err.to_string()),
-            };
-        record_binary_pair(payload, &response);
+        let (response, answered_by) = handle_binary_frame_attributed(payload, backend);
+        let response = match response.and_then(|response| response.encode()) {
+            Ok(bytes) => bytes,
+            Err(err) => binary_error_response(&err.to_string()),
+        };
+        record_binary_pair(payload, &response, answered_by);
         response
     } else {
         match handle_text_frame_recording(payload, backend) {
@@ -193,5 +230,5 @@ fn binary_error_response(message: &str) -> Vec<u8> {
     BinaryResponse::error(0, message)
         .and_then(|response| response.encode())
         .or_else(|_| BinaryResponse::new(0, Status::Unknown, 0, Vec::new())?.encode())
-        .unwrap_or_else(|_| b"SMTR\0\0\0\0\x03\0\0\0\0\0\0\0".to_vec())
+        .unwrap_or_else(|_| b"BVSR\0\0\0\0\x03\0\0\0\0\0\0\0".to_vec())
 }

@@ -1,8 +1,8 @@
 use crate::types::Sort;
 
-pub const EXPR_MAGIC: [u8; 4] = *b"SMT\0";
-pub const REQUEST_MAGIC: [u8; 4] = *b"SMTQ";
-pub const RESPONSE_MAGIC: [u8; 4] = *b"SMTR";
+pub const EXPR_MAGIC: [u8; 4] = *b"BV\0\0";
+pub const REQUEST_MAGIC: [u8; 4] = *b"BVSQ";
+pub const RESPONSE_MAGIC: [u8; 4] = *b"BVSR";
 pub const VERSION: u8 = 1;
 
 pub const EXPR_HEADER_LEN: usize = 32;

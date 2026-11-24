@@ -438,8 +438,14 @@ class Z3Server:
                 pass
 
     def _dispatch_payload(self, payload: bytes) -> bytes:
+        if payload.startswith(LEGACY_REQUEST_MAGIC):
+            # Clients from before the smt-server -> bv-server rename: answer in kind.
+            return _downgrade_response(self._dispatch_current(_upgrade_request(payload)))
+        return self._dispatch_current(payload)
+
+    def _dispatch_current(self, payload: bytes) -> bytes:
         if not payload.startswith(bv.REQUEST_MAGIC):
-            return _text_error("Python Z3 server only supports binary SMTQ frames")
+            return _text_error("Python Z3 server only supports binary bv-wire frames")
         try:
             request = _parse_binary_request(payload)
         except Exception as exc:
@@ -484,6 +490,34 @@ def _bind_listener(host: str, port: int) -> socket.socket:
     if last_error is not None:
         raise last_error
     raise OSError(f"could not resolve bind address {host!r}:{port}")
+
+
+LEGACY_EXPR_MAGIC = b"SMT\0"
+LEGACY_REQUEST_MAGIC = b"SMTQ"
+LEGACY_RESPONSE_MAGIC = b"SMTR"
+
+
+def _replace_magic(data: bytearray, offset: int, old: bytes, new: bytes) -> None:
+    if data[offset : offset + 4] == old:
+        data[offset : offset + 4] = new
+
+
+def _upgrade_request(payload: bytes) -> bytes:
+    data = bytearray(payload)
+    data[:4] = bv.REQUEST_MAGIC
+    if len(data) >= 18 and struct.unpack_from("<I", data, 14)[0] >= 4:
+        _replace_magic(data, REQUEST_HEADER_SIZE, LEGACY_EXPR_MAGIC, bv.EXPR_MAGIC)
+    return bytes(data)
+
+
+def _downgrade_response(payload: bytes) -> bytes:
+    if not payload.startswith(bv.RESPONSE_MAGIC):
+        return payload
+    data = bytearray(payload)
+    data[:4] = LEGACY_RESPONSE_MAGIC
+    if len(data) > 9 and data[9] & RESP_HAS_EXPR:
+        _replace_magic(data, 24, bv.EXPR_MAGIC, LEGACY_EXPR_MAGIC)
+    return bytes(data)
 
 
 def _parse_binary_request(payload: bytes) -> _BinaryRequest:
