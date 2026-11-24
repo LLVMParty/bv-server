@@ -50,6 +50,13 @@ jobs:
         run: |
           python -m pip install ./python --target python-pkg-smoke
           python -c "import sys; sys.path.insert(0, 'python-pkg-smoke'); import bv_wire; ctx = bv_wire.Context(); assert ctx.bv_var('x', 8).width == 8"
+      - name: Python Z3 server
+        shell: bash
+        run: |
+          # Installs the package's z3 extra into a private directory; the test
+          # still imports bv_wire and bv_z3_server from python/ itself.
+          python -m pip install "./python[z3]" --target python-z3-deps
+          PYTHONPATH=python-z3-deps python python/tests/test_z3_server.py
       - name: Live server end-to-end
         run: python python/tests/test_live_server.py
       - name: C++ client CMake smoke
