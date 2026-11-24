@@ -79,11 +79,21 @@ fn try_acquire_connection(active_connections: &AtomicUsize, max_connections: usi
     if max_connections == 0 {
         return false;
     }
-    active_connections
-        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |current| {
-            (current < max_connections).then_some(current + 1)
-        })
-        .is_ok()
+    // Hand-rolled rather than `fetch_update`, which newer Rust deprecates in
+    // favour of `try_update`, which older toolchains don't have.
+    let mut current = active_connections.load(Ordering::Acquire);
+    while current < max_connections {
+        match active_connections.compare_exchange_weak(
+            current,
+            current + 1,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => return true,
+            Err(actual) => current = actual,
+        }
+    }
+    false
 }
 
 struct ConnectionPermit {

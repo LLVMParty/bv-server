@@ -527,8 +527,8 @@ pub fn parse_annotation(items: &[SExpr]) -> Result<Option<(&SExpr, Option<String
         ));
     }
     let mut name = None;
-    for pair in items[2..].chunks_exact(2) {
-        let key = atom(&pair[0])?;
+    for [key, value] in items[2..].as_chunks::<2>().0 {
+        let key = atom(key)?;
         if !key.starts_with(':') {
             return Err(FrontendError::invalid(
                 "annotation",
@@ -536,7 +536,7 @@ pub fn parse_annotation(items: &[SExpr]) -> Result<Option<(&SExpr, Option<String
             ));
         }
         if key == ":named" {
-            name = Some(atom(&pair[1])?.to_owned());
+            name = Some(atom(value)?.to_owned());
         }
     }
     Ok(Some((&items[1], name)))
