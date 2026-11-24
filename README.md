@@ -1,6 +1,6 @@
-# SMT Server
+# bv-server
 
-SMT Server lets analysis tools build `QF_BV` formulas with small client libraries and delegate solving or simplification to a separate server.
+bv-server lets analysis tools build `QF_BV` formulas with small client libraries and delegate solving or simplification to a separate server.
 
 It targets binary analysis, lifting, symbolic execution, and IR experiments where client projects need bit-vector queries but should avoid embedding solver build systems. A client constructs a flat binary DAG, sends a length-prefixed request, and receives a model, unsat core, optimum value, or simplified expression. The server owns the solver and simplifier integrations.
 
@@ -8,7 +8,7 @@ It targets binary analysis, lifting, symbolic execution, and IR experiments wher
 
 - C++: header-only C++17 package under `cpp/`.
 - Python: dependency-free package under `python/`, installable with pip's `#subdirectory=python` support.
-- Rust: `smt-wire` crate with an idiomatic `Context`/term/`Client` API; protocol internals are isolated for the server.
+- Rust: `bv-wire` crate with an idiomatic `Context`/term/`Client` API; protocol internals are isolated for the server.
 
 ## Backends
 
@@ -40,10 +40,10 @@ cargo build --workspace
 ## Run the server
 
 ```sh
-cargo run -p smt-server -- 127.0.0.1:9123
+cargo run -p bv-server -- 127.0.0.1:9123
 ```
 
-If no address is provided, the server listens on `127.0.0.1:9123`. Clients use `SMT_SERVER_ADDRESS=<host>:<port>` as their default connection target, falling back to `127.0.0.1:9123` when the variable is unset.
+If no address is provided, the server listens on `127.0.0.1:9123`. Clients use `BV_SERVER_ADDRESS=<host>:<port>` as their default connection target, falling back to `127.0.0.1:9123` when the variable is unset.
 
 Requests use length-prefixed frames:
 
@@ -54,7 +54,7 @@ payload bytes
 
 Payload formats:
 
-- binary `SMTQ` request produced by `smt-wire` or one of the clients;
+- binary `SMTQ` request produced by `bv-wire` or one of the clients;
 - SMT-LIB script as UTF-8 text.
 
 ## Request recording
@@ -64,47 +64,47 @@ The server records every handled binary request/response pair to a local SQLite 
 Default database:
 
 ```text
-~/.smt-server/recordings.db
+~/.bv-server/recordings.db
 ```
 
-Override the database with `SMT_SERVER_RECORD_DB`:
+Override the database with `BV_SERVER_RECORD_DB`:
 
 ```sh
-SMT_SERVER_RECORD_DB=/tmp/smt-recordings.db cargo run -p smt-server -- 127.0.0.1:9123
+BV_SERVER_RECORD_DB=/tmp/bv-recordings.db cargo run -p bv-server -- 127.0.0.1:9123
 ```
 
-Set `SMT_SERVER_RECORD_DB` to an empty value to disable recording:
+Set `BV_SERVER_RECORD_DB` to an empty value to disable recording:
 
 ```sh
-SMT_SERVER_RECORD_DB= cargo run -p smt-server -- 127.0.0.1:9123
+BV_SERVER_RECORD_DB= cargo run -p bv-server -- 127.0.0.1:9123
 ```
 
 Rows are deduplicated by the BLAKE3 hash of the canonical binary request, with request and response `request_id` fields zeroed so equivalent requests share one entry. Existing rows are left unchanged.
 
-To import the old file-tree corpus from `~/.smt-server/requests` into the SQLite database:
+To import the old file-tree corpus from `~/.bv-server/requests` into the SQLite database:
 
 ```sh
-cargo run -p smt-server -- migrate-recordings
+cargo run -p bv-server -- migrate-recordings
 ```
 
 Custom migration paths are supported:
 
 ```sh
-cargo run -p smt-server -- migrate-recordings /path/to/requests /tmp/smt-recordings.db
+cargo run -p bv-server -- migrate-recordings /path/to/requests /tmp/bv-recordings.db
 ```
 
 ## Python client example
 
-The Python client can be installed with `pip install 'git+https://github.com/LLVMParty/smt-server.git#subdirectory=python'` or used directly by adding `python/` to `PYTHONPATH`.
+The Python client can be installed with `pip install 'git+https://github.com/LLVMParty/bv-server.git#subdirectory=python'` or used directly by adding `python/` to `PYTHONPATH`.
 
 ```python
-import smt_wire as smt
+import bv_wire as bv
 
-ctx = smt.Context()
+ctx = bv.Context()
 x = ctx.bv_var("x", 8)
 ctx.assert_(ctx.bv_eq(x, 42))
 
-with smt.Client() as client:
+with bv.Client() as client:
     response = client.solve(ctx)  # want_model=True by default
 
 print(response.status)       # Status.SAT
@@ -121,13 +121,13 @@ print(ctx.to_smt2())          # includes check-sat/get-model by default
 `SIMPLIFY` requests send one expression root and return a typed term in a fresh result context:
 
 ```python
-import smt_wire as smt
+import bv_wire as bv
 
-ctx = smt.Context()
+ctx = bv.Context()
 x = ctx.bv_var("x", 64)
 target = x + 0
 
-with smt.Client() as client:
+with bv.Client() as client:
     simplified = client.simplify(target)
 
 if simplified.term is not None:
@@ -151,7 +151,7 @@ A text frame can contain an SMT-LIB script:
 The text frontend supports declarations, assertions, named assertions, `check-sat`, `check-sat-assuming`, `get-model`, `get-value`, `get-unsat-core`, `let`, and common bit-vector operations. It rejects stateful incremental commands such as `push` and `pop`.
 
 ```python
-with smt.Client() as client:
+with bv.Client() as client:
     print(client.smt2(script))
 ```
 
@@ -160,7 +160,7 @@ The full Python walkthrough is in `python/example.py`.
 ## Rust client
 
 ```rust
-use smt_wire::{Client, Context, Status};
+use bv_wire::{Client, Context, Status};
 
 let ctx = Context::new();
 let x = ctx.bv_var("x", 8).unwrap();
@@ -176,20 +176,20 @@ if response.status == Status::Sat {
 }
 ```
 
-A matching Rust walkthrough is in `crates/smt-wire/examples/example.rs`.
+A matching Rust walkthrough is in `crates/bv-wire/examples/example.rs`.
 
 ## C++ client
 
 The C++ helper is a dependency-free C++17 header:
 
 ```cpp
-#include <smt_wire/smt_wire.hpp>
+#include <bv_wire/bv_wire.hpp>
 
-smt_wire::Context ctx;
+bv_wire::Context ctx;
 auto x = ctx.bv_var("x", 8);
 ctx.assert_(ctx.bv_eq(x, 42u));
 
-smt_wire::Client client;
+bv_wire::Client client;
 auto response = client.solve(ctx);
 ```
 
@@ -223,14 +223,14 @@ See `docs/qfbvsmtrs-validation.md` for maintainer validation gates and corpus-ru
 
 ## Repository layout
 
-- `crates/smt-wire` — Rust high-level client API plus server-side wire-format internals and validators.
+- `crates/bv-wire` — Rust high-level client API plus server-side wire-format internals and validators.
 - `crates/qfbvsmtrs` — standalone pure-Rust `QF_BV` bit-blasting solver crate and CLI.
-- `crates/smt-server` — TCP server, Rumba simplifier integration, solver backend integration, SMT-LIB frontend.
+- `crates/bv-server` — TCP server, Rumba simplifier integration, solver backend integration, SMT-LIB frontend.
 - `python` — Python client package and tests.
 - `cpp` — C++17 header-only package, CMake target, and tests.
 - `docs/architecture.md` — current crate/server/backend architecture.
 - `docs/client-api.md` — Python, C++, and Rust client API notes.
-- `docs/smt-wire-protocol.md` — binary wire protocol reference.
+- `docs/bv-wire-protocol.md` — binary wire protocol reference.
 - `docs/smtlib-frontend.md` — shared QF_BV SMT-LIB frontend behavior.
 - `docs/qfbvsmtrs-design.md` — pure-Rust solver design.
 - `docs/qfbvsmtrs-validation.md` — validation gates and latest corpus status.

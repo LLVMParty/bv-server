@@ -1,11 +1,11 @@
 # qfbvsmtrs design
 
-`qfbvsmtrs` is a standalone pure-Rust solver for quantifier-free bit-vector formulas. It is also integrated into `smt-server` as `QfbvsmtrsBackend`, but the solver crate does not depend on the server crate.
+`qfbvsmtrs` is a standalone pure-Rust solver for quantifier-free bit-vector formulas. It is also integrated into `bv-server` as `QfbvsmtrsBackend`, but the solver crate does not depend on the server crate.
 
 ## Pipeline
 
 ```text
-Native builder / SMT-LIB / smt-wire bridge
+Native builder / SMT-LIB / bv-wire bridge
         |
         v
 qfbvsmtrs Query IR
@@ -44,7 +44,7 @@ Core crate: `crates/qfbvsmtrs`.
 | `query.rs` | assertions, assumptions, commands, optimization target, output requests |
 | `builder.rs` | native builder API and eager local simplification |
 | `frontend.rs` | adapter from shared SMT-LIB frontend into qfbvsmtrs IR and SMT-LIB response formatting |
-| `wire.rs` | optional `smt-wire` bridge for server integration |
+| `wire.rs` | optional `bv-wire` bridge for server integration |
 | `gates.rs` | Boolean gate arena with structural hashing |
 | `circuits.rs` | bit-vector circuits over Boolean gates |
 | `blast.rs` | reachable IR to gate graph |
@@ -56,7 +56,7 @@ Core crate: `crates/qfbvsmtrs`.
 | `eval.rs` | evaluator used to validate cheap SAT witnesses |
 | `simplify.rs` | simplification module hook/documentation |
 
-The shared SMT-LIB parser is in `crates/smt-qfbv-smtlib`; qfbvsmtrs only supplies a sink adapter.
+The shared SMT-LIB parser is in `crates/bv-smtlib`; qfbvsmtrs only supplies a sink adapter.
 
 ## Public entry points
 

@@ -205,6 +205,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d20789868f4b01b2f2caec9f5c4e0213b41e3e5702a50157d699ae31ced2fcb"
 
 [[package]]
+name = "bv-server"
+version = "0.1.0"
+dependencies = [
+ "binbit",
+ "blake3",
+ "bv-smtlib",
+ "bv-wire",
+ "qfbvsmtrs",
+ "rumba-core",
+ "rusqlite",
+ "z3",
+]
+
+[[package]]
+name = "bv-smtlib"
+version = "0.1.0"
+dependencies = [
+ "dashu",
+ "yaspar",
+]
+
+[[package]]
+name = "bv-wire"
+version = "0.1.0"
+
+[[package]]
 name = "bytes"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1502,8 +1528,8 @@ dependencies = [
 name = "qfbvsmtrs"
 version = "0.1.0"
 dependencies = [
- "smt-qfbv-smtlib",
- "smt-wire",
+ "bv-smtlib",
+ "bv-wire",
  "splr",
  "varisat",
  "z3",
@@ -1930,32 +1956,6 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
-
-[[package]]
-name = "smt-qfbv-smtlib"
-version = "0.1.0"
-dependencies = [
- "dashu",
- "yaspar",
-]
-
-[[package]]
-name = "smt-server"
-version = "0.1.0"
-dependencies = [
- "binbit",
- "blake3",
- "qfbvsmtrs",
- "rumba-core",
- "rusqlite",
- "smt-qfbv-smtlib",
- "smt-wire",
- "z3",
-]
-
-[[package]]
-name = "smt-wire"
-version = "0.1.0"
 
 [[package]]
 name = "socket2"

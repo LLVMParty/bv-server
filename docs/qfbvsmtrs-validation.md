@@ -12,7 +12,7 @@ A production-complete claim for this crate would require:
 - budgets, process timeouts, and memory-heavy failure modes are documented and respected;
 - unsupported SMT-LIB constructs are rejected rather than mis-solved;
 - remaining corpus `unknown`/timeout cases are either solved or explicitly accepted as outside the guarantee;
-- `smt-server` integration correctly handles `sat`, `unsat`, `unknown`, model, core, simplification, optimization, cache, and text/binary formatting paths while qfbvsmtrs remains standalone.
+- `bv-server` integration correctly handles `sat`, `unsat`, `unknown`, model, core, simplification, optimization, cache, and text/binary formatting paths while qfbvsmtrs remains standalone.
 
 Current status: no wrong conclusive answers in the recorded corpus runs, but the merged SMT-LIB QF_BV tail still contains `3,266` `unknown` results and `15` process timeouts.
 
@@ -29,12 +29,12 @@ python3 python/tests/test_python_client.py
 python3 python/tests/test_live_server.py
 cmake -S cpp -B /tmp/smt_cpp_cmake
 cmake --build /tmp/smt_cpp_cmake
-cargo build -p smt-server
-target/debug/smt-server 127.0.0.1:9123 &
+cargo build -p bv-server
+target/debug/bv-server 127.0.0.1:9123 &
 server_pid=$!
 trap 'kill "$server_pid" 2>/dev/null || true' EXIT
 sleep 1
-SMT_SERVER_ADDRESS=127.0.0.1:9123 ctest --test-dir /tmp/smt_cpp_cmake --output-on-failure
+BV_SERVER_ADDRESS=127.0.0.1:9123 ctest --test-dir /tmp/smt_cpp_cmake --output-on-failure
 ```
 
 The checked-in suite includes exhaustive 4-bit circuit tests, randomized circuit properties, Tseitin truth-table tests across SAT backends, known-answer SMT-LIB fixtures, Rust Z3 differential smoke tests, standalone qfbvsmtrs tests, server binary/text/cache/racing tests, live client tests, and C++/Python smoke tests.

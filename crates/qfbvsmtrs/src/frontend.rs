@@ -5,7 +5,7 @@ use crate::model::{scalar_to_smt, Model, ScalarValue};
 use crate::query::Query;
 use crate::solver::{SolveResult, SolveStatus};
 use crate::{Config, Solver};
-use smt_qfbv_smtlib::{lower_script, FrontendError, FrontendOptions, QfBvSink};
+use bv_smtlib::{lower_script, FrontendError, FrontendOptions, QfBvSink};
 
 pub struct QfbvSmtLibSink<'a> {
     builder: &'a mut Builder,

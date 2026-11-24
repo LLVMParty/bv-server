@@ -1,4 +1,4 @@
-#include <smt_wire/smt_wire.hpp>
+#include <bv_wire/bv_wire.hpp>
 
 #include <algorithm>
 #include <cstdint>
@@ -7,22 +7,22 @@
 #include <string>
 #include <vector>
 
-std::string status_name(smt_wire::Status status) {
+std::string status_name(bv_wire::Status status) {
     switch (status) {
-        case smt_wire::Status::Simplified: return "Status::Simplified";
-        case smt_wire::Status::Sat: return "Status::Sat";
-        case smt_wire::Status::Unsat: return "Status::Unsat";
-        case smt_wire::Status::Unknown: return "Status::Unknown";
-        case smt_wire::Status::Error: return "Status::Error";
+        case bv_wire::Status::Simplified: return "Status::Simplified";
+        case bv_wire::Status::Sat: return "Status::Sat";
+        case bv_wire::Status::Unsat: return "Status::Unsat";
+        case bv_wire::Status::Unknown: return "Status::Unknown";
+        case bv_wire::Status::Error: return "Status::Error";
     }
     return "Status::<invalid>";
 }
 
-std::string to_rpn(const smt_wire::Term& term) {
+std::string to_rpn(const bv_wire::Term& term) {
     switch (term.op()) {
-        case smt_wire::Op::BV_VAR:
+        case bv_wire::Op::BV_VAR:
             return term.name();
-        case smt_wire::Op::BV_CONST:
+        case bv_wire::Op::BV_CONST:
             return std::to_string(term.value()) + ":" + std::to_string(term.width());
         default:
             break;
@@ -32,7 +32,7 @@ std::string to_rpn(const smt_wire::Term& term) {
     for (const auto& child : term.children()) {
         parts.push_back(to_rpn(child));
     }
-    parts.push_back(smt_wire::op_symbol(static_cast<uint8_t>(term.op())));
+    parts.push_back(bv_wire::op_symbol(static_cast<uint8_t>(term.op())));
 
     std::ostringstream out;
     for (size_t i = 0; i < parts.size(); ++i) {
@@ -43,7 +43,7 @@ std::string to_rpn(const smt_wire::Term& term) {
 }
 
 int main() {
-    smt_wire::Context ctx;
+    bv_wire::Context ctx;
     std::cout << "Context#" << ctx.id() << "\n";
 
     auto x = ctx.bv_var("x", 32);
@@ -66,12 +66,12 @@ int main() {
     std::cout << "RPN: " << to_rpn(mba.as_term()) << "\n";
 
     // Start the server first:
-    //   cargo run -p smt-server -- 127.0.0.1:9123
-    // Or set SMT_SERVER_ADDRESS=<host>:<port> to choose a different default.
-    smt_wire::Client client;
+    //   cargo run -p bv-server -- 127.0.0.1:9123
+    // Or set BV_SERVER_ADDRESS=<host>:<port> to choose a different default.
+    bv_wire::Client client;
     auto resp = client.solve(ctx);
     std::cout << status_name(resp.status) << "\n";
-    if (resp.status == smt_wire::Status::Sat && resp.has_model) {
+    if (resp.status == bv_wire::Status::Sat && resp.has_model) {
         auto items = resp.model.items();
         std::sort(items.begin(), items.end(), [](const auto& a, const auto& b) {
             return a.first.name() < b.first.name();
