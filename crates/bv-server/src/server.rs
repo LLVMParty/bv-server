@@ -143,6 +143,11 @@ fn handle_connection(mut stream: TcpStream, config: Arc<ServerConfig>) -> std::i
                 response_payload.len(),
                 config.max_response_bytes
             ));
+            // The replacement is built with the current magics; a legacy client
+            // still needs one it can parse.
+            if is_legacy_request_payload(&payload) {
+                downgrade_response_in_place(&mut response_payload);
+            }
         }
         let frame = le::encode_transport_frame(&response_payload)
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))?;

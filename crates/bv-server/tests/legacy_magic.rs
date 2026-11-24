@@ -1,15 +1,21 @@
 //! Clients built before the smt-server -> bv-server rename send `SMTQ` requests
 //! and expect `SMTR` responses with `SMT\0` expression buffers.
 
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 
-use bv_server::{dispatch_payload_with_cache, Backend, QueryResult, ResponseCache};
+use bv_server::{
+    dispatch_payload_with_cache, serve_tcp, Backend, QueryResult, ResponseCache, ServerConfig,
+};
 use bv_wire::raw::constants::{EXPR_MAGIC, REQUEST_MAGIC, RESPONSE_MAGIC};
 use bv_wire::raw::legacy::{
     upgrade_response_in_place, LEGACY_EXPR_MAGIC, LEGACY_REQUEST_MAGIC, LEGACY_RESPONSE_MAGIC,
 };
-use bv_wire::raw::{BinaryRequest, BinaryResponse, ExprBuilder, SimplifyBlock, Status};
+use bv_wire::raw::{le, BinaryRequest, BinaryResponse, ExprBuilder, SimplifyBlock, Status};
 
 /// Answers SOLVE with SAT and SIMPLIFY by echoing the request's expression.
 struct EchoBackend {
@@ -113,4 +119,43 @@ fn malformed_legacy_request_gets_legacy_error_response() {
     };
     let response = bv_server::dispatch_payload(b"SMTQ-truncated", &backend);
     assert_eq!(response[..4], LEGACY_RESPONSE_MAGIC);
+}
+
+#[test]
+fn oversized_legacy_response_is_replaced_with_legacy_error() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    drop(listener);
+    thread::spawn(move || {
+        let mut config = ServerConfig::new(Arc::new(EchoBackend {
+            count: Arc::new(AtomicUsize::new(0)),
+        }));
+        config.max_response_bytes = 15;
+        let _ = serve_tcp(addr, config);
+    });
+
+    let mut builder = ExprBuilder::new();
+    let t = builder.bool_true().unwrap();
+    builder.assert(t).unwrap();
+    let request = to_legacy_request(builder.build_solve_request(5, 0, false, false).unwrap());
+
+    let mut stream = (0..100)
+        .find_map(|_| {
+            TcpStream::connect(addr)
+                .map_err(|_| thread::sleep(Duration::from_millis(10)))
+                .ok()
+        })
+        .expect("server did not start listening");
+    stream
+        .write_all(&le::encode_transport_frame(&request).unwrap())
+        .unwrap();
+    let mut len = [0u8; 4];
+    stream.read_exact(&mut len).unwrap();
+    let mut response = vec![0u8; u32::from_le_bytes(len) as usize];
+    stream.read_exact(&mut response).unwrap();
+
+    assert_eq!(response[..4], LEGACY_RESPONSE_MAGIC);
+    assert!(upgrade_response_in_place(&mut response));
+    let response = BinaryResponse::parse(&response).unwrap();
+    assert_eq!(response.envelope.status, Status::Error);
 }
