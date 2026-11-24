@@ -427,6 +427,10 @@ class Z3Server:
                         0,
                         f"response payload length {len(response)} exceeds configured maximum {self._max_response_bytes}",
                     )
+                    # The replacement uses the current magics; a legacy client
+                    # still needs one it can parse.
+                    if payload.startswith(LEGACY_REQUEST_MAGIC):
+                        response = _downgrade_response(response)
                 _safe_send(conn, _frame(response))
         except (EOFError, OSError):
             return

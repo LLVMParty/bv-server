@@ -98,19 +98,6 @@ def test_z3_server_minimize_and_maximize_round_trip() -> None:
         assert maximum.optimum.as_int() == 9
 
 
-def main() -> None:
-    test_z3_server_uses_random_tcp_port()
-    test_z3_server_simple_sat_model_round_trip()
-    test_z3_server_unsat_core_round_trip()
-    test_z3_server_assumptions_affect_solve()
-    test_z3_server_simplify_is_noop_but_protocol_compatible()
-    test_z3_server_minimize_and_maximize_round_trip()
-
-
-if __name__ == "__main__":
-    main()
-
-
 def _legacy_request(payload: bytes) -> bytes:
     assert payload[:4] == bv.REQUEST_MAGIC and payload[32:36] == bv.EXPR_MAGIC
     return b"SMTQ" + payload[4:32] + b"SMT\0" + payload[36:]
@@ -131,3 +118,41 @@ def test_z3_server_answers_legacy_clients_with_legacy_magics() -> None:
         response = server._dispatch_payload(simplify)
         assert response[:4] == b"SMTR"
         assert response[24:28] == b"SMT\0"
+
+
+def test_z3_server_oversized_legacy_response_is_legacy_error() -> None:
+    with Z3Server.start(port=0, max_response_bytes=15) as server:
+        ctx = bv.Context()
+        x = ctx.bv_var("x", 8)
+        ctx.assert_(ctx.bv_eq(x, 3))
+        request = _legacy_request(ctx._build_solve_request(0xA012).payload)
+        with socket.create_connection(server.address, timeout=5) as sock:
+            sock.sendall(len(request).to_bytes(4, "little") + request)
+            length = int.from_bytes(_recv_exact(sock, 4), "little")
+            response = _recv_exact(sock, length)
+        assert response[:4] == b"SMTR"
+        assert bv._parse_response(b"BVSR" + response[4:]).status is bv.Status.ERROR
+
+
+def _recv_exact(sock: socket.socket, size: int) -> bytes:
+    data = b""
+    while len(data) < size:
+        chunk = sock.recv(size - len(data))
+        assert chunk, "server closed the connection"
+        data += chunk
+    return data
+
+
+def main() -> None:
+    test_z3_server_uses_random_tcp_port()
+    test_z3_server_simple_sat_model_round_trip()
+    test_z3_server_unsat_core_round_trip()
+    test_z3_server_assumptions_affect_solve()
+    test_z3_server_simplify_is_noop_but_protocol_compatible()
+    test_z3_server_minimize_and_maximize_round_trip()
+    test_z3_server_answers_legacy_clients_with_legacy_magics()
+    test_z3_server_oversized_legacy_response_is_legacy_error()
+
+
+if __name__ == "__main__":
+    main()
