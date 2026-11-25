@@ -49,13 +49,20 @@ jobs:
       - name: Python package install smoke
         run: |
           python -m pip install ./python --target python-pkg-smoke
-          python -c "import sys; sys.path.insert(0, 'python-pkg-smoke'); import smt_wire; ctx = smt_wire.Context(); assert ctx.bv_var('x', 8).width == 8"
+          python -c "import sys; sys.path.insert(0, 'python-pkg-smoke'); import bv_wire; ctx = bv_wire.Context(); assert ctx.bv_var('x', 8).width == 8"
+      - name: Python Z3 server
+        shell: bash
+        run: |
+          # Installs the package's z3 extra into a private directory; the test
+          # still imports bv_wire and bv_z3_server from python/ itself.
+          python -m pip install "./python[z3]" --target python-z3-deps
+          PYTHONPATH=python-z3-deps python python/tests/test_z3_server.py
       - name: Live server end-to-end
         run: python python/tests/test_live_server.py
       - name: C++ client CMake smoke
         shell: bash
         run: |
-          cargo build --locked -p smt-server
+          cargo build --locked -p bv-server
           cd cpp
           cmake -B build -DCMAKE_BUILD_TYPE=Debug
           cmake --build build --config Debug
@@ -72,16 +79,18 @@ jobs:
           build_dir = root / "target" / "debug" / "build"
           z3_dirs = [
               str(path)
-              for pattern in ("z3-sys-*/out/z3-*/bin", "z3-sys-*/out/z3-*/lib")
+              # Older Cargo: build/z3-sys-<hash>/out; newer: build/z3-sys/<hash>/out.
+              for prefix in ("z3-sys-*", "z3-sys/*")
+              for pattern in (f"{prefix}/out/z3-*/bin", f"{prefix}/out/z3-*/lib")
               for path in build_dir.glob(pattern)
           ]
           env = os.environ.copy()
           if z3_dirs:
               for var in ("PATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"):
                   env[var] = os.pathsep.join(z3_dirs + [env.get(var, "")])
-          env["SMT_SERVER_ADDRESS"] = "127.0.0.1:9123"
+          env["BV_SERVER_ADDRESS"] = "127.0.0.1:9123"
 
-          exe = root / "target" / "debug" / ("smt-server.exe" if os.name == "nt" else "smt-server")
+          exe = root / "target" / "debug" / ("bv-server.exe" if os.name == "nt" else "bv-server")
           log_path = root / "target" / "cpp-e2e-server.log"
           with log_path.open("wb") as log:
               proc = subprocess.Popen([str(exe), "127.0.0.1:9123"], cwd=root, env=env, stdout=log, stderr=log)
@@ -90,7 +99,7 @@ jobs:
                   last_error = None
                   while time.time() < deadline:
                       if proc.poll() is not None:
-                          raise RuntimeError(f"smt-server exited early with {proc.returncode}")
+                          raise RuntimeError(f"bv-server exited early with {proc.returncode}")
                       try:
                           with socket.create_connection(("127.0.0.1", 9123), timeout=0.2):
                               break
@@ -98,7 +107,7 @@ jobs:
                           last_error = exc
                           time.sleep(0.05)
                   else:
-                      raise TimeoutError(f"smt-server did not start: {last_error}")
+                      raise TimeoutError(f"bv-server did not start: {last_error}")
                   subprocess.check_call(["ctest", "--test-dir", str(root / "cpp" / "build"), "--output-on-failure", "-C", "Debug"], env=env)
               except Exception:
                   log.flush()

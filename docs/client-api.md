@@ -10,20 +10,20 @@ The user-facing clients expose the same model: a `Context` owns an append-only t
 - Integer operands are coerced to bit-vector constants using the width of the bit-vector operand.
 - `push`/`pop` are client-side assertion-scope operations; the server still receives one complete stateless request.
 - Serialization, DAG compaction, request envelopes, TCP framing, and response payload parsing are implementation details behind `Client`.
-- When no address is passed, clients read `SMT_SERVER_ADDRESS=<host>:<port>` and otherwise fall back to `127.0.0.1:9123`.
+- When no address is passed, clients read `BV_SERVER_ADDRESS=<host>:<port>` and otherwise fall back to `127.0.0.1:9123`.
 
 The full side-by-side walkthroughs are:
 
 - Python: `python/example.py`
 - C++: `cpp/tests/example.cpp`
-- Rust: `crates/smt-wire/examples/example.rs`
+- Rust: `crates/bv-wire/examples/example.rs`
 
 ## Python
 
 Install from this repository:
 
 ```sh
-pip install 'git+https://github.com/LLVMParty/smt-server.git#subdirectory=python'
+pip install 'git+https://github.com/LLVMParty/bv-server.git#subdirectory=python'
 ```
 
 Or use directly from a checkout:
@@ -35,13 +35,13 @@ PYTHONPATH=python python3 python/example.py
 Minimal usage:
 
 ```python
-import smt_wire as smt
+import bv_wire as bv
 
-ctx = smt.Context()
+ctx = bv.Context()
 x = ctx.bv_var("x", 8)
 ctx.assert_(ctx.bv_eq(x, 42))
 
-with smt.Client() as client:
+with bv.Client() as client:
     response = client.solve(ctx)
 
 print(response.status)
@@ -52,23 +52,23 @@ if response.model is not None:
 
 ## C++
 
-The C++ client is header-only C++17 and exposes the CMake target `smt_wire::smt_wire` from `cpp/CMakeLists.txt`:
+The C++ client is header-only C++17 and exposes the CMake target `bv_wire::bv_wire` from `cpp/CMakeLists.txt`:
 
 ```cmake
-add_subdirectory(path/to/smt-server/cpp)
-target_link_libraries(my_tool PRIVATE smt_wire::smt_wire)
+add_subdirectory(path/to/bv-server/cpp)
+target_link_libraries(my_tool PRIVATE bv_wire::bv_wire)
 ```
 
 Minimal usage:
 
 ```cpp
-#include <smt_wire/smt_wire.hpp>
+#include <bv_wire/bv_wire.hpp>
 
-smt_wire::Context ctx;
+bv_wire::Context ctx;
 auto x = ctx.bv_var("x", 8);
 ctx.assert_(ctx.bv_eq(x, 42u));
 
-smt_wire::Client client;
+bv_wire::Client client;
 auto response = client.solve(ctx);
 ```
 
@@ -76,10 +76,10 @@ On Windows/MSVC the header requests `Ws2_32.lib` automatically. With MinGW, link
 
 ## Rust
 
-Use the `smt-wire` crate in this workspace:
+Use the `bv-wire` crate in this workspace:
 
 ```rust
-use smt_wire::{Client, Context, Status};
+use bv_wire::{Client, Context, Status};
 
 let ctx = Context::new();
 let x = ctx.bv_var("x", 8)?;
@@ -94,4 +94,4 @@ if response.status == Status::Sat {
 }
 ```
 
-Protocol internals remain available under `smt_wire::raw` for the server and conformance tests, but normal client code should use `Context`, typed terms, and `Client`.
+Protocol internals remain available under `bv_wire::raw` for the server and conformance tests, but normal client code should use `Context`, typed terms, and `Client`.

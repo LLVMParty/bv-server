@@ -8,7 +8,7 @@ use crate::ir::TermId;
 use crate::model::{Model, ScalarValue as QScalarValue};
 use crate::query::{Command as QCommand, Query};
 
-use smt_wire::raw::{
+use bv_wire::raw::{
     request_flags, tag, BinaryRequest, BlobRef, Command, ExprView, ModelBlock, ModelEntry, NodeRef,
     RawNode, ScalarValue,
 };
@@ -16,7 +16,7 @@ use smt_wire::raw::{
 pub fn query_from_wire(request: &BinaryRequest) -> Result<Query> {
     let expr = request
         .expression_view()
-        .map_err(|err| Error::invalid("smt-wire expression", err.to_string()))?;
+        .map_err(|err| Error::invalid("bv-wire expression", err.to_string()))?;
     let mut builder = Builder::new();
     let mut terms = vec![None; expr.node_count() as usize];
     let mut bv_vars = HashMap::<(String, u32), TermId>::new();
@@ -25,12 +25,12 @@ pub fn query_from_wire(request: &BinaryRequest) -> Result<Query> {
     for index in 0..expr.node_count() {
         let node = expr
             .node(index)
-            .map_err(|err| Error::invalid("smt-wire node", err.to_string()))?;
+            .map_err(|err| Error::invalid("bv-wire node", err.to_string()))?;
         let term = match node.tag {
             tag::BV_VAR => {
                 let name = expr
                     .blob_str(BlobRef::from_payload(node.payload), "BV variable")
-                    .map_err(|err| Error::invalid("smt-wire BV variable", err.to_string()))?
+                    .map_err(|err| Error::invalid("bv-wire BV variable", err.to_string()))?
                     .to_owned();
                 if let Some(term) = bv_vars.get(&(name.clone(), node.width)).copied() {
                     term
@@ -51,7 +51,7 @@ pub fn query_from_wire(request: &BinaryRequest) -> Result<Query> {
             tag::BOOL_VAR => {
                 let name = expr
                     .blob_str(BlobRef::from_payload(node.payload), "Bool variable")
-                    .map_err(|err| Error::invalid("smt-wire Bool variable", err.to_string()))?
+                    .map_err(|err| Error::invalid("bv-wire Bool variable", err.to_string()))?
                     .to_owned();
                 if let Some(term) = bool_vars.get(&name).copied() {
                     term
@@ -241,7 +241,7 @@ pub fn query_from_wire(request: &BinaryRequest) -> Result<Query> {
                 let (a, b) = child2(&expr, &terms, &node)?;
                 builder.sdiv_ovf(a, b)?
             }
-            other => return Err(Error::unsupported(format!("smt-wire tag {other}"))),
+            other => return Err(Error::unsupported(format!("bv-wire tag {other}"))),
         };
         terms[index as usize] = Some(term);
     }

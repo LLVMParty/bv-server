@@ -7,11 +7,11 @@ license.workspace = true
 
 [features]
 default = []
-wire = ["dep:smt-wire"]
+wire = ["dep:bv-wire"]
 
 [dependencies]
-smt-qfbv-smtlib.workspace = true
-smt-wire = { workspace = true, optional = true }
+bv-smtlib.workspace = true
+bv-wire = { workspace = true, optional = true }
 varisat.workspace = true
 splr.workspace = true
 

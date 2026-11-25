@@ -1,0 +1,10 @@
+[package]
+name = "bv-wire"
+version.workspace = true
+edition.workspace = true
+description = "Rust codecs, views, validation, and builders for the bv-wire v1 format"
+license.workspace = true
+
+[lib]
+name = "bv_wire"
+path = "src/lib.rs"

@@ -1,8 +1,8 @@
 # Shared SMT-LIB frontend
 
-SMT-LIB parsing lives in `crates/smt-qfbv-smtlib`. It is intentionally solver-agnostic: the crate parses one script with `yaspar`, normalizes common QF_BV/Bool constructs, and lowers through the `QfBvSink` trait. The same parser is used by:
+SMT-LIB parsing lives in `crates/bv-smtlib`. It is intentionally solver-agnostic: the crate parses one script with `yaspar`, normalizes common QF_BV/Bool constructs, and lowers through the `QfBvSink` trait. The same parser is used by:
 
-- `crates/smt-server/src/smtlib.rs`, where `WireSmtLibSink` builds an `smt-wire` request;
+- `crates/bv-server/src/smtlib.rs`, where `WireSmtLibSink` builds an `bv-wire` request;
 - `crates/qfbvsmtrs/src/frontend.rs`, where `QfbvSmtLibSink` builds qfbvsmtrs IR.
 
 This avoids keeping separate SMT-LIB parsers in sync.
@@ -13,7 +13,7 @@ This avoids keeping separate SMT-LIB parsers in sync.
 
 | Option set | Logic policy | `push`/`pop` | Typical use |
 |---|---|---|---|
-| `FrontendOptions::server_text()` | accepts `QF_BV` | rejects incremental commands | `smt-server` text frames lowered to one stateless wire request |
+| `FrontendOptions::server_text()` | accepts `QF_BV` | rejects incremental commands | `bv-server` text frames lowered to one stateless wire request |
 | `FrontendOptions::standalone()` | accepts `QF_BV` or `ALL` | simulates scopes in the sink | qfbvsmtrs CLI/API |
 
 Both modes require a `check-sat` command before response-oriented commands are considered complete.
@@ -63,11 +63,11 @@ The frontend is limited to QF_BV/Bool. Arrays, floating point, quantifiers, unin
 
 Server text frames are still stateless. The server reads exactly one length-prefixed script and returns one SMT-LIB text response. In server text mode:
 
-1. `smt-qfbv-smtlib` tries to lower the script into an `smt-wire` `SOLVE` request.
+1. `bv-smtlib` tries to lower the script into an `bv-wire` `SOLVE` request.
 2. The selected backend handles that request and returns a `QueryResult`.
-3. `smt-server` formats `sat`/`unsat`/`unknown`, plus `(model ...)`, `get-value`, or unsat-core output when requested.
+3. `bv-server` formats `sat`/`unsat`/`unknown`, plus `(model ...)`, `get-value`, or unsat-core output when requested.
 
-When the selected backend supports qfbvsmtrs text fallback and the server wire-lowering frontend rejects a script, the server can invoke qfbvsmtrs' standalone parser/solver on a worker thread. The fallback uses a default 30s budget, overrideable with `SMT_SERVER_TEXT_QFBVSMTRS_BUDGET_MS`; a nonzero fallback budget selects qfbvsmtrs' polling DPLL backend to avoid in-process timeout overruns.
+When the selected backend supports qfbvsmtrs text fallback and the server wire-lowering frontend rejects a script, the server can invoke qfbvsmtrs' standalone parser/solver on a worker thread. The fallback uses a default 30s budget, overrideable with `BV_SERVER_TEXT_QFBVSMTRS_BUDGET_MS`; a nonzero fallback budget selects qfbvsmtrs' polling DPLL backend to avoid in-process timeout overruns.
 
 ## Error model
 

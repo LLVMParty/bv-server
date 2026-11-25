@@ -1,0 +1,19 @@
+[package]
+name = "bv-server"
+version.workspace = true
+edition.workspace = true
+description = "Reference bv-wire server and backends"
+license.workspace = true
+
+[dependencies]
+binbit.workspace = true
+qfbvsmtrs = { workspace = true, features = ["wire"] }
+rumba-core.workspace = true
+bv-smtlib.workspace = true
+bv-wire.workspace = true
+blake3.workspace = true
+rusqlite.workspace = true
+z3.workspace = true
+
+[dev-dependencies]
+rumba-core = { workspace = true, features = ["parse"] }

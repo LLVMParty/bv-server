@@ -1,7 +1,7 @@
-import smt_wire as smt
+import bv_wire as bv
 
 
-ctx = smt.Context()
+ctx = bv.Context()
 print(ctx)  # Context#1, Context#2, ...
 
 x = ctx.bv_var("x", 32)
@@ -26,11 +26,11 @@ print("masked:", masked.to_smt2())
 
 # A visitor can lower a returned/simplified DAG into your own IR. This one
 # prints a small reverse Polish notation string for the MBA expression.
-def to_rpn(term: smt.Term, args: tuple[str, ...]) -> str:
-    if term.op is smt.Op.BV_VAR:
+def to_rpn(term: bv.Term, args: tuple[str, ...]) -> str:
+    if term.op is bv.Op.BV_VAR:
         return term.name
-    if term.op is smt.Op.BV_CONST:
-        assert isinstance(term, smt.BVTerm)
+    if term.op is bv.Op.BV_CONST:
+        assert isinstance(term, bv.BVTerm)
         return f"{term.value}:{term.width}"
     return " ".join((*args, term.op.symbol))
 
@@ -38,11 +38,11 @@ def to_rpn(term: smt.Term, args: tuple[str, ...]) -> str:
 print("RPN:", mba.visit(to_rpn))
 
 # Start the server first:
-#   cargo run -p smt-server -- 127.0.0.1:9123
-with smt.Client() as client:
+#   cargo run -p bv-server -- 127.0.0.1:9123
+with bv.Client() as client:
     resp = client.solve(ctx)
     print(resp.status)
-    if resp.status is smt.Status.SAT and resp.model is not None:
+    if resp.status is bv.Status.SAT and resp.model is not None:
         for var, value in resp.model.items():
             print(f"{var.name} = {hex(int(value))}")
 
@@ -55,6 +55,6 @@ print("\nSMT-LIB:")
 ctx_smt2 = ctx.to_smt2()
 print(ctx_smt2)
 
-with smt.Client() as client:
+with bv.Client() as client:
     smt_resp = client.smt2(ctx_smt2)
     print(smt_resp)
